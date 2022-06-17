@@ -6,18 +6,68 @@ import java.util.ArrayDeque
 
 @JvmName("diff")
 fun dependencyTreeDiff(old: String, new: String): String {
-	val oldLines = dependencies(old)
-	val newLines = dependencies(new)
-	return dependencyTreeDiff(oldLines, newLines)
+	val olds = dependencies(old)
+	val news = dependencies(new)
+
+	val addedConfigurations = news.keys - olds.keys
+	val removedConfigurations = olds.keys - news.keys
+	val matchingConfigurations = news.keys intersect olds.keys
+
+	val added = addedConfigurations.associateWith { dependencyTreeDiff(emptyList(), news.getValue(it)) }
+	val removed = removedConfigurations.associateWith { dependencyTreeDiff(olds.getValue(it), emptyList()) }
+	val modified = matchingConfigurations.associateWith { dependencyTreeDiff(olds.getValue(it), news.getValue(it)) }
+
+	return (added + modified + removed)
+		.entries
+		// Ignore configurations that didn't change at all.
+		.filter { it.value != "" }
+		.joinToString(separator = "\n") { (configuration, diff) ->
+			"${configuration}\n${diff}"
+		}
 }
 
-private fun dependencies(old: String): List<String> =
+private enum class DependencyScanState {
+	LOOKING,
+	SCANNING,
+}
+
+private fun dependencies(old: String): Map<String, List<String>> {
+	val configurations = mutableMapOf<String, List<String>>()
+	var state = DependencyScanState.LOOKING
+	var configuration = "String to Satisfy Kotlin Compiler"
+	val dependencies = mutableListOf<String>()
 	old
 		.lines()
-		.dropWhile { !it.startsWith("+--- ") && !it.startsWith("\\---") }
-		.takeWhile { it.isNotEmpty() }
+		.fold("<unknown configuration>") { prev, curr ->
+			when (state) {
+				DependencyScanState.LOOKING -> {
+					if (curr.startsWith("+--- ") || curr.startsWith("\\---")) {
+						// Found first line of dependencies, save configuration and collect all of them.
+						configuration = prev
+						dependencies.add(curr)
+						state = DependencyScanState.SCANNING
+					} else {
+						// Continue `reduce`, skipping over unknown lines.
+					}
+				}
 
-@JvmName("diff")
+				DependencyScanState.SCANNING -> {
+					if (curr.isEmpty()) {
+						if (configurations.putIfAbsent(configuration, dependencies.toList()) != null) {
+							error("Unsupported input: multiple unknown configurations")
+						}
+						dependencies.clear()
+						state = DependencyScanState.LOOKING
+					} else {
+						dependencies.add(curr)
+					}
+				}
+			}
+			curr
+		}
+	return configurations
+}
+
 private fun dependencyTreeDiff(oldLines: List<String>, newLines: List<String>): String {
 	val oldPaths = findDependencyPaths(oldLines)
 	val newPaths = findDependencyPaths(newLines)
