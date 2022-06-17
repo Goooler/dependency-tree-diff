@@ -6,8 +6,21 @@ import java.util.ArrayDeque
 
 @JvmName("diff")
 fun dependencyTreeDiff(old: String, new: String): String {
-	val oldPaths = findDependencyPaths(old)
-	val newPaths = findDependencyPaths(new)
+	val oldLines = dependencies(old)
+	val newLines = dependencies(new)
+	return dependencyTreeDiff(oldLines, newLines)
+}
+
+private fun dependencies(old: String): List<String> =
+	old
+		.lines()
+		.dropWhile { !it.startsWith("+--- ") && !it.startsWith("\\---") }
+		.takeWhile { it.isNotEmpty() }
+
+@JvmName("diff")
+private fun dependencyTreeDiff(oldLines: List<String>, newLines: List<String>): String {
+	val oldPaths = findDependencyPaths(oldLines)
+	val newPaths = findDependencyPaths(newLines)
 
 	val removedTree = buildTree(oldPaths - newPaths)
 	val addedTree = buildTree(newPaths - oldPaths)
@@ -17,11 +30,7 @@ fun dependencyTreeDiff(old: String, new: String): String {
 	}
 }
 
-private fun findDependencyPaths(text: String): Set<List<String>> {
-	val dependencyLines = text.lines()
-		.dropWhile { !it.startsWith("+--- ") && !it.startsWith("\\---") }
-		.takeWhile { it.isNotEmpty() }
-
+private fun findDependencyPaths(dependencyLines: List<String>): Set<List<String>> {
 	val dependencyPaths = mutableSetOf<List<String>>()
 	val stack = ArrayDeque<String>()
 	for (dependencyLine in dependencyLines) {
