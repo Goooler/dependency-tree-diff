@@ -13,14 +13,21 @@ fun dependencyTreeDiff(old: String, new: String): String {
 	val removedConfigurations = olds.keys - news.keys
 	val matchingConfigurations = news.keys intersect olds.keys
 
-	val added = addedConfigurations.associateWith { dependencyTreeDiff(emptyList(), news.getValue(it)) }
-	val removed = removedConfigurations.associateWith { dependencyTreeDiff(olds.getValue(it), emptyList()) }
-	val modified = matchingConfigurations.associateWith { dependencyTreeDiff(olds.getValue(it), news.getValue(it)) }
-
-	return (added + modified + removed)
-		.entries
+	val added = addedConfigurations
+		.associateWith { dependencyTreeDiff(emptyList(), news.getValue(it)) }
+		.mapKeys { "+$it" }
+		.mapValues { it.value.takeIf(String::isNotEmpty) ?: "No dependencies\n" }
+	val removed = removedConfigurations
+		.associateWith { dependencyTreeDiff(olds.getValue(it), emptyList()) }
+		.mapKeys { "-$it" }
+		.mapValues { it.value.takeIf(String::isNotEmpty) ?: "No dependencies\n" }
+	val modified = matchingConfigurations
+		.associateWith { dependencyTreeDiff(olds.getValue(it), news.getValue(it)) }
 		// Ignore configurations that didn't change at all.
 		.filter { it.value != "" }
+
+	return (modified + added + removed)
+		.entries
 		.joinToString(separator = "\n") { (configuration, diff) ->
 			"${configuration}\n${diff}"
 		}
@@ -41,7 +48,7 @@ private fun dependencies(old: String): Map<String, List<String>> {
 		.fold("<unknown configuration>") { prev, curr ->
 			when (state) {
 				DependencyScanState.LOOKING -> {
-					if (curr.startsWith("+--- ") || curr.startsWith("\\---")) {
+					if (curr.startsWith("+--- ") || curr.startsWith("\\---") || curr == "No dependencies" ) {
 						// Found first line of dependencies, save configuration and collect all of them.
 						configuration = prev
 						dependencies.add(curr)
@@ -53,7 +60,14 @@ private fun dependencies(old: String): Map<String, List<String>> {
 
 				DependencyScanState.SCANNING -> {
 					if (curr.isEmpty()) {
-						if (configurations.putIfAbsent(configuration, dependencies.toList()) != null) {
+						val cleanDependencies = if (dependencies.size == 1 && dependencies[0] == "No dependencies") {
+							// Remove dependencies from configurations with only "No dependencies" so tree diff doesn't process it.
+							emptyList()
+						} else {
+							// Make a copy of the mutable list to prevent leaking mutations into result.
+							dependencies.toList()
+						}
+						if (configurations.putIfAbsent(configuration, cleanDependencies) != null) {
 							error("Unsupported input: multiple unknown configurations")
 						}
 						dependencies.clear()
