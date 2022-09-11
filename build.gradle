@@ -58,7 +58,7 @@ def r8Jar = tasks.register('r8Jar', JavaExec) { task ->
 		'--lib', System.properties['java.home'].toString()
 	]
 	doFirst {
-		task.args += fatJarProvider.get().archivePath
+		task.args += fatJarProvider.get().archiveFile.get()
 	}
 }
 
