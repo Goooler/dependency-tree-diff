@@ -1,1 +1,16 @@
+pluginManagement {
+	dependencyResolutionManagement {
+		repositories {
+			mavenCentral()
+			gradlePluginPortal()
+		}
+	}
+}
+dependencyResolutionManagement {
+	repositories {
+		google()
+		mavenCentral()
+	}
+}
+
 rootProject.name = 'dependency-tree-diff'

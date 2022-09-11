@@ -1,10 +1,6 @@
-buildscript {
-	dependencies {
-		classpath 'org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0'
-	}
+plugins {
+	id "org.jetbrains.kotlin.jvm" version "1.7.10"
 }
-
-apply plugin: 'org.jetbrains.kotlin.jvm'
 
 configurations {
 	r8
@@ -85,14 +81,4 @@ tasks.named('assemble').configure { task ->
 
 artifacts {
 	archives file: binaryFile, name: 'binary', type: 'jar', builtBy: binaryJar, classifier: 'binary'
-}
-
-buildscript {
-	repositories {
-		mavenCentral()
-	}
-}
-repositories {
-	mavenCentral()
-	google()
 }

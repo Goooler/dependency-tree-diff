@@ -20,7 +20,7 @@ class FixtureTest(private val fixtureDir: File) {
 	companion object {
 		@JvmStatic
 		@Parameters(name = "{0}")
-		fun params() = File("src/test/fixtures")
+		fun params(): Array<File>? = File("src/test/fixtures")
 			.listFiles { file -> file.isDirectory }
 	}
 }
